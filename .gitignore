@@ -1,0 +1,31 @@
+# Python virtual environment (recreated by the deploy script)
+venv/
+.venv/
+
+# Bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Run output (manifests + logs are machine/run specific)
+runs/
+
+# Scheduler state
+*.sqlite
+loadgen_jobs.sqlite
+
+# Windows Task Scheduler wrappers — these contain the connection URI + password.
+# NEVER commit these.
+win_tasks/
+
+# Local environment / secrets
+.env
+loadgen.env
+*.local
+
+# Host-specific generated docs
+START_HERE.pdf
+
+# OS cruft
+.DS_Store
+Thumbs.db
