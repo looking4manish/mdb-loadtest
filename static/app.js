@@ -133,6 +133,7 @@ async function pollLogs() {
 }
 
 let COLLECTIONS = [];
+let PERSIST_BACKEND = "OS scheduler";
 
 // ---- handlers -------------------------------------------------------------
 function setupHandlers() {
@@ -277,7 +278,7 @@ async function pollRun(runId) {
 function updateSchNote() {
   const mode = $("sch-mode").value;
   $("sch-note").textContent = (mode === "permanent")
-    ? "Permanent: registers a Windows Task Scheduler task that runs run_window.py daily at the start "
+    ? `Permanent: registers an OS task (${PERSIST_BACKEND}) that runs run_window.py daily at the start `
       + "time (+jitter). Survives reboot and runs with this app closed; it runs when you are logged on "
       + "(cannot run while fully logged off). Auto-seeds before each run."
     : "In-app: APScheduler fires the run, but ONLY while this web app is running. Persisted in SQLite so "
@@ -311,6 +312,7 @@ async function listSchedule() {
   renderCollections(COLLECTIONS, null);
   $("output-dir").value = data.defaults.output_dir;
   $("db-name").value = data.defaults.db;
+  if (data.defaults.persistent_backend) PERSIST_BACKEND = data.defaults.persistent_backend;
   setupHandlers();
   updateSchNote();
   showTab(0);

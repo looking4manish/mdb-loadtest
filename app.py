@@ -30,7 +30,7 @@ import runner
 import scheduler as scheduler_mod
 import seeder as seeder_mod
 import teardown as teardown_mod
-import wintask
+import ostask
 from db import make_client, resolve_db_name
 from logbus import BUS
 from tz import dual
@@ -158,6 +158,7 @@ def api_catalog():
             "schedule_days": config.DEFAULT_SCHEDULE_DAYS,
             "smoke_large_count": config.SMOKE_SEED_LARGE_COUNT,
             "large_count": config.DEFAULT_SEED_LARGE_COUNT,
+            "persistent_backend": ostask.backend_name(),
         },
         "now": dual(),
     }
@@ -271,17 +272,17 @@ def api_schedule_delete(job_id: str):
 
 @app.post("/api/persistent-schedule")
 def api_persistent_create(req: PersistentReq):
-    return wintask.create_persistent_task(req.model_dump())
+    return ostask.create_persistent_task(req.model_dump())
 
 
 @app.get("/api/persistent-schedule")
 def api_persistent_list():
-    return wintask.list_persistent_tasks()
+    return ostask.list_persistent_tasks()
 
 
 @app.delete("/api/persistent-schedule")
 def api_persistent_delete():
-    return wintask.remove_persistent_task()
+    return ostask.remove_persistent_task()
 
 
 @app.post("/api/teardown")

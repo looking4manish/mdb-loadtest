@@ -14,9 +14,10 @@ runs/
 *.sqlite
 loadgen_jobs.sqlite
 
-# Windows Task Scheduler wrappers — these contain the connection URI + password.
+# OS-scheduler wrappers — these contain the connection URI + password.
 # NEVER commit these.
 win_tasks/
+mac_tasks/
 
 # Local environment / secrets
 .env

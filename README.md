@@ -107,15 +107,24 @@ logged in that day's manifest). The Schedule card offers two persistence modes:
 
 - **In-app (APScheduler + SQLite jobstore).** Survives an app *restart*, but only
   fires while the web app is running.
-- **Permanent (OS scheduler).** Registers a real OS task so the run fires with the
-  app closed and survives a reboot:
-  - **Windows** — registers a **Task Scheduler** task directly from the UI
-    (`wintask.py`). Because the app runs unelevated, the task runs *when you are
-    logged on* (it can't run while fully logged off — that needs an admin/S4U task).
-    The generated wrapper under `win_tasks/` holds the URI and is locked down with
-    `icacls`; it is git-ignored and never committed.
-  - **macOS / Linux** — use the `systemd` timer below, or a `launchd` plist / cron
-    entry that calls `run_window.py` (the UI's permanent button is Windows-only).
+- **Permanent (OS scheduler).** The same UI button registers a real OS task so the
+  run fires with the app closed and survives a reboot. The backend is chosen by
+  platform (`ostask.py` dispatches):
+  - **Windows** — a **Task Scheduler** task (`wintask.py`). The wrapper under
+    `win_tasks/` holds the URI and is locked with `icacls`. Jitter = the task's
+    `RandomDelay`.
+  - **macOS** — a **launchd LaunchAgent** (`mactask.py`) written to
+    `~/Library/LaunchAgents/com.loadgen.daily.plist` and loaded with
+    `launchctl bootstrap`. The wrapper under `mac_tasks/` holds the URI (`chmod 600`).
+    launchd has no random delay, so jitter is a random sleep inside `run_window.py`
+    (`LOADGEN_JITTER_MAX_SEC`); the N-day range is honoured by the wrapper
+    self-removing after its end date. A reference plist lives in `launchd/`.
+  - **Linux** — the UI button is not wired; use the `systemd` timer below.
+
+  On both Windows and macOS the task runs *while you are logged on* and auto-starts
+  after reboot/login. Running while **fully logged off** needs elevation (a Windows
+  S4U task / a root `LaunchDaemon`). The wrapper files (`win_tasks/`, `mac_tasks/`)
+  contain the connection URI and are git-ignored — never committed.
 
 ### systemd alternative (journald-logged)
 
@@ -181,15 +190,18 @@ loadgen/
   manifest.py       dual-TZ, credential-redacting manifest
   runner.py         run orchestration (preflight → seed guard → workloads → manifest)
   scheduler.py      APScheduler (SQLite jobstore) — in-app schedule
-  wintask.py        Windows Task Scheduler integration — permanent schedule (UI-driven)
-  run_window.py     headless single-window runner (used by systemd + the OS task)
+  ostask.py         picks the permanent-schedule backend by platform
+  wintask.py        Windows Task Scheduler integration (permanent schedule)
+  mactask.py        macOS launchd integration (permanent schedule)
+  run_window.py     headless single-window runner (used by systemd / Task Scheduler / launchd)
   deploy.sh         one-command deploy for macOS / Linux
   deploy.ps1        one-command deploy for Windows (PowerShell)
   teardown.py       drop DB + remove jobs (UI + CLI)
   notify.py         failure-notification hook (stub)
   workloads/        one module per workload class + registry
   static/           single-page UI (index.html, app.js, style.css)
-  systemd/          loadgen.service + loadgen.timer (not auto-installed)
+  systemd/          loadgen.service + loadgen.timer (Linux; not auto-installed)
+  launchd/          com.loadgen.daily.plist reference (macOS)
   runs/             default output dir
   EXPECTED_SIGNALS.md
   requirements.txt

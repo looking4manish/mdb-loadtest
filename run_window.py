@@ -30,6 +30,15 @@ def main() -> int:
     if not uri:
         print("ERROR: LOADGEN_URI not set", file=sys.stderr)
         return 1
+    # Jitter: launchd has no random delay, so apply it here (Windows uses the
+    # task's RandomDelay instead and leaves this unset).
+    jitter_max = int(os.environ.get("LOADGEN_JITTER_MAX_SEC", "0") or "0")
+    if jitter_max > 0:
+        import random
+        import time
+        delay = random.randint(0, jitter_max)
+        print(f"jitter: sleeping {delay}s (0..{jitter_max}) before run", file=sys.stderr)
+        time.sleep(delay)
     today = __import__("datetime").datetime.utcnow().strftime("%Y%m%d")
     base_seed = int(os.environ.get("LOADGEN_BASE_SEED", "1234"))
     day_seed = (base_seed + int(today)) % (2 ** 31)
