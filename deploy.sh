@@ -3,7 +3,9 @@
 # loadgen deploy script — macOS / Linux
 #
 #   ./deploy.sh            # create venv + install dependencies
-#   ./deploy.sh --run      # ...then start the web app
+#   ./deploy.sh --run      # ...then start the web app (foreground)
+#   ./deploy.sh --detached # ...start in the background (nohup), frees the terminal
+#   ./deploy.sh --stop     # stop a detached server started earlier
 #   PORT=9000 ./deploy.sh --run
 #   PYTHON=python3.13 ./deploy.sh
 #
@@ -15,10 +17,28 @@ cd "$(dirname "$0")"
 PY="${PYTHON:-python3}"
 PORT="${PORT:-8000}"
 HOST="${HOST:-127.0.0.1}"
-RUN=0
+PIDFILE=".loadgen_server.pid"
+RUN=0; DETACHED=0; STOP=0
 for arg in "$@"; do
-  [ "$arg" = "--run" ] && RUN=1
+  case "$arg" in
+    --run) RUN=1 ;;
+    --detached|--detach) DETACHED=1 ;;
+    --stop) STOP=1 ;;
+  esac
 done
+
+# --- stop a previously-detached server -------------------------------------
+if [ "$STOP" = "1" ]; then
+  if [ -f "$PIDFILE" ]; then
+    OLDPID="$(cat "$PIDFILE")"
+    if kill "$OLDPID" 2>/dev/null; then echo "Stopped loadgen server (PID $OLDPID)."
+    else echo "No running process with PID $OLDPID (already stopped?)."; fi
+    rm -f "$PIDFILE"
+  else
+    echo "No PID file ($PIDFILE) - nothing to stop."
+  fi
+  exit 0
+fi
 
 if ! command -v "$PY" >/dev/null 2>&1; then
   echo "ERROR: '$PY' not found. Install Python 3.10+ or set PYTHON=/path/to/python." >&2
@@ -48,14 +68,26 @@ if [ "$FREEPORT" != "$PORT" ]; then
   echo "==> Port $PORT unavailable (in use or reserved); using $FREEPORT instead."
 fi
 URL="http://$HOST:$FREEPORT/"
+# --no-access-log silences per-request log spam (the UI polls /api/logs ~every 1.5s);
+# the app's own dual-TZ INFO lines still print.
 
 echo ""
 echo "Deploy complete. Start the app with:"
-echo "    ./venv/bin/python -m uvicorn app:app --host $HOST --port $FREEPORT"
+echo "    ./venv/bin/python -m uvicorn app:app --host $HOST --port $FREEPORT --no-access-log"
 echo "Then open: $URL"
+
+if [ "$DETACHED" = "1" ]; then
+  nohup ./venv/bin/python -m uvicorn app:app --host "$HOST" --port "$FREEPORT" --no-access-log \
+    > server.log 2>&1 &
+  echo $! > "$PIDFILE"
+  echo ""
+  echo "==> Started loadgen DETACHED (PID $(cat "$PIDFILE")) - open $URL"
+  echo "    Logs:  ./server.log     Stop:  ./deploy.sh --stop   (or kill $(cat "$PIDFILE"))"
+  exit 0
+fi
 
 if [ "$RUN" = "1" ]; then
   echo ""
   echo "==> Starting loadgen — open $URL  (Ctrl+C to stop)"
-  exec ./venv/bin/python -m uvicorn app:app --host "$HOST" --port "$FREEPORT"
+  exec ./venv/bin/python -m uvicorn app:app --host "$HOST" --port "$FREEPORT" --no-access-log
 fi
