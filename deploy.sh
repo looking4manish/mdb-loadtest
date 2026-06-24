@@ -38,13 +38,24 @@ echo "==> Upgrading pip + installing requirements"
 echo "==> Verifying pymongo imports"
 ./venv/bin/python -c "import pymongo, fastapi, uvicorn, apscheduler; print('   deps OK — pymongo', pymongo.version)"
 
+# Find the first port uvicorn can actually bind, starting at $PORT (skips ports
+# in use and, on Windows hosts, reserved ranges).
+FREEPORT="$(./venv/bin/python freeport.py "$PORT")" || {
+  echo "ERROR: no bindable port found at/above $PORT. Set PORT=... and retry." >&2
+  exit 1
+}
+if [ "$FREEPORT" != "$PORT" ]; then
+  echo "==> Port $PORT unavailable (in use or reserved); using $FREEPORT instead."
+fi
+URL="http://$HOST:$FREEPORT/"
+
 echo ""
 echo "Deploy complete. Start the app with:"
-echo "    ./venv/bin/python -m uvicorn app:app --host $HOST --port $PORT"
-echo "Then open: http://$HOST:$PORT/"
+echo "    ./venv/bin/python -m uvicorn app:app --host $HOST --port $FREEPORT"
+echo "Then open: $URL"
 
 if [ "$RUN" = "1" ]; then
   echo ""
-  echo "==> Starting loadgen on http://$HOST:$PORT/  (Ctrl+C to stop)"
-  exec ./venv/bin/python -m uvicorn app:app --host "$HOST" --port "$PORT"
+  echo "==> Starting loadgen — open $URL  (Ctrl+C to stop)"
+  exec ./venv/bin/python -m uvicorn app:app --host "$HOST" --port "$FREEPORT"
 fi

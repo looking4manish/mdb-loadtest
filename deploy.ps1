@@ -53,13 +53,25 @@ Write-Host "==> Upgrading pip + installing requirements"
 Write-Host "==> Verifying dependencies"
 & $venvPy -c "import pymongo, fastapi, uvicorn, apscheduler; print('   deps OK - pymongo', pymongo.version)"
 
+# Find the first port uvicorn can actually bind, starting at $Port. This skips
+# ports in use AND Windows excluded/reserved ranges (winerror 10013).
+$freePort = (& $venvPy freeport.py $Port).Trim()
+if (-not $freePort) {
+  Write-Error "No bindable port found at/above $Port. Try a different -Port."
+  exit 1
+}
+if ($freePort -ne "$Port") {
+  Write-Host "==> Port $Port unavailable (in use or reserved); using $freePort instead."
+}
+$url = "http://${BindHost}:$freePort/"
+
 Write-Host ""
 Write-Host "Deploy complete. Start the app with:"
-Write-Host "    .\venv\Scripts\python.exe -m uvicorn app:app --host $BindHost --port $Port"
-Write-Host "Then open: http://$BindHost`:$Port/"
+Write-Host "    .\venv\Scripts\python.exe -m uvicorn app:app --host $BindHost --port $freePort"
+Write-Host "Then open: $url"
 
 if ($Run) {
   Write-Host ""
-  Write-Host "==> Starting loadgen on http://$BindHost`:$Port/  (Ctrl+C to stop)"
-  & $venvPy -m uvicorn app:app --host $BindHost --port $Port
+  Write-Host "==> Starting loadgen - open $url   (Ctrl+C to stop)"
+  & $venvPy -m uvicorn app:app --host $BindHost --port $freePort
 }
