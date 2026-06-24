@@ -24,8 +24,7 @@ mac_tasks/
 loadgen.env
 *.local
 
-# Host-specific generated docs
-START_HERE.pdf
+# Note: START_HERE.pdf is a generic (no-secrets) quick-start guide and IS tracked.
 
 # OS cruft
 .DS_Store
